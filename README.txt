@@ -1,6 +1,10 @@
 OShwk03group
 ============
 
+struct event
+  Contains a WaitQueue (called waitQ) and an eventID.  WaitQueue is
+  implemented in <linux/wait.h>.
+
 int doeventopen()
   Creates a new event, returning event ID on success, -1 on failure.
   
