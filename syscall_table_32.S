@@ -1,0 +1,1 @@
+../../QDGL/linux-2.6.26.5/arch/x86/kernel/syscall_table_32.S
