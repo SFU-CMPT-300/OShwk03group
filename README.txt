@@ -9,7 +9,7 @@ int doeventopen()
       Add the new id to the linked list, and return the id.
 
 int doeventclose(int eventID)
-  Destroy the event with the given event ID and signal any processes
+  Destroys the event with the given event ID and signal any processes
   waiting on the event to leave the event. Return number of processes
   signaled on success and -1 on failure.
 
