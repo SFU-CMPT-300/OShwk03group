@@ -17,7 +17,6 @@
 #include <linux/delay.h>
 #include <linux/tick.h>
 #include <linux/kallsyms.h>
-#include <linux/prinfo.h> //Our stuff!
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
