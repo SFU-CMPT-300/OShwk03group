@@ -37,7 +37,7 @@
 // kernel-hacking-HOWTO-5.html
 #include <linux/spinlock.h>
 
-#include "eventcalls.h"
+#include <cs2456/eventcalls.h>
 
 struct event global_event;
 rwlock_t eventID_list_lock;
@@ -63,7 +63,7 @@ struct event * get_event(int eventID){
   }
 }
 
-void initiate_global(){
+void initiate_global(void){
   eventID_list_lock = RW_LOCK_UNLOCKED;
 
   //  unsigned long flags; // for the lock
@@ -76,7 +76,7 @@ void initiate_global(){
   event_initialized = true;
 }
 
-asmlinkage int sys_doeventopen(){
+asmlinkage int sys_doeventopen(void){
   
   //  if(! event_initialized){
   //    initiate_global();
@@ -90,6 +90,12 @@ asmlinkage int sys_doeventopen(){
   // Add the event's list to the main list.
   unsigned long flags; // for the lock
   write_lock_irqsave(&eventID_list_lock, flags);
+  struct event * pos;
+  printk("Before Adding\n");
+  list_for_each_entry(pos, &global_event.eventID_list, eventID_list){
+    printk("%d -> ",pos->eventID);
+  }
+  printk("\n");
 
   list_add_tail(&(my_event->eventID_list), &global_event.eventID_list);
 
@@ -102,6 +108,11 @@ asmlinkage int sys_doeventopen(){
   printk("%i, %i, %i\n", maxID, my_event->eventID, global_event.eventID);
 
   init_waitqueue_head(&(my_event->waitQ));
+  printk("After Adding\n");
+  list_for_each_entry(pos, &global_event.eventID_list, eventID_list){
+    printk("%d -> ",pos->eventID);
+  }
+  printk("\n");
 
   write_unlock_irqrestore(&eventID_list_lock, flags);
 
