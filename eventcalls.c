@@ -37,42 +37,11 @@
 // kernel-hacking-HOWTO-5.html
 #include <linux/spinlock.h>
 
-// Prototypes:
-int kernel_list_length(struct list_head * lh);
+#include "eventcalls.h"
 
-struct event * get_event(int eventID);
-
-void initiate_global(void);
-
-asmlinkage int sys_doeventopen(void);
-asmlinkage int sys_doeventclose(int eventID);
-asmlinkage int sys_doeventwait(int eventID);
-asmlinkage int sys_doeventsig(int eventID);
-
-// Define event.
-struct event
-{
-  int eventID;
-
-  // INIT_LIST_HEAD(&my_event.eventID_list)
-  // needs to be done afterward in
-  // sys_doeventopen().
-  struct list_head eventID_list;
-
-  // init_waitqueue_head(&waitQ) needs to be
-  // done afterward in sys_doeventopen().
-  wait_queue_head_t waitQ;
-
-  bool go_ahead;
-};
-
-rwlock_t eventID_list_lock;
-
-// Declare and initialize the eventID_list.
-// Was going to do this, but need events to persist
-// outside of methods, will they in this structure?
 struct event global_event;
-bool initiated = false;
+rwlock_t eventID_list_lock;
+bool event_initialized;
 
 int kernel_list_length(struct list_head * lh){
   int result = 0;
@@ -95,26 +64,34 @@ struct event * get_event(int eventID){
 }
 
 void initiate_global(){
+  eventID_list_lock = RW_LOCK_UNLOCKED;
+
+  //  unsigned long flags; // for the lock
+  //  read_lock_irqsave(&eventID_list_lock, flags);
   INIT_LIST_HEAD(&global_event.eventID_list);
+  //  read_unlock_irqrestore(&eventID_list_lock, flags);
+
   global_event.eventID = 0;
   init_waitqueue_head(&global_event.waitQ);
-  eventID_list_lock = RW_LOCK_UNLOCKED;
-  initiated = true;
+  event_initialized = true;
 }
 
 asmlinkage int sys_doeventopen(){
-  if(! initiated){
-    initiate_global();
-  }
+  
+  //  if(! event_initialized){
+  //    initiate_global();
+  //  }
 
-  struct event * my_event = kmalloc(sizeof(my_event), GFP_KERNEL);
+  struct event * my_event = kmalloc(sizeof(struct event), GFP_KERNEL);
+
   // Initialize the event's list.
   INIT_LIST_HEAD(&(my_event->eventID_list));
 
   // Add the event's list to the main list.
-  list_add_tail(&(my_event->eventID_list), &global_event.eventID_list);
+  unsigned long flags; // for the lock
+  write_lock_irqsave(&eventID_list_lock, flags);
 
-  
+  list_add_tail(&(my_event->eventID_list), &global_event.eventID_list);
 
   int maxID = list_entry(&(my_event->eventID_list),
                          struct event,
@@ -122,15 +99,28 @@ asmlinkage int sys_doeventopen(){
 
   my_event->eventID = maxID + 1;
 
+  printk("%i, %i, %i\n", maxID, my_event->eventID, global_event.eventID);
+
   init_waitqueue_head(&(my_event->waitQ));
+
+  write_unlock_irqrestore(&eventID_list_lock, flags);
+
   return my_event->eventID;
 }
 
 asmlinkage int sys_doeventclose(int eventID){
+  unsigned long flags;
 
+  read_lock_irqsave(&eventID_list_lock, flags);
   struct event * this_event = get_event(eventID);
+  read_unlock_irqrestore(&eventID_list_lock, flags);
+
   int result = sys_doeventsig(eventID);
+
+  write_lock_irqsave(&eventID_list_lock, flags);
   list_del(&(this_event->eventID_list));
+  write_unlock_irqrestore(&eventID_list_lock, flags);
+
   kfree(this_event);
 
   return result;
@@ -139,10 +129,16 @@ asmlinkage int sys_doeventclose(int eventID){
 }
 
 asmlinkage int sys_doeventwait(int eventID){
-  struct event * this_event = get_event(eventID);
-  this_event->go_ahead = false;
 
-  while(!this_event->go_ahead) {
+  unsigned long flags;
+  read_lock_irqsave(&eventID_list_lock, flags);
+  struct event * this_event = get_event(eventID);
+
+  int x = this_event->go_aheads;
+
+  read_unlock_irqrestore(&eventID_list_lock, flags);
+
+  while(x==this_event->go_aheads) {
     interruptible_sleep_on(&(this_event->waitQ));
   }
 
@@ -150,12 +146,20 @@ asmlinkage int sys_doeventwait(int eventID){
 }
 
 asmlinkage int sys_doeventsig(int eventID){
+
+  unsigned long flags;
+
+  write_lock_irqsave(&eventID_list_lock, flags);
+
   struct event * this_event = get_event(eventID);
-  this_event->go_ahead = true;
-
+  // Right here, the event could be deleted by another process.
+  // But not with this handy write lock!
+  this_event->go_aheads++;
+  // Same as above.
   int result = kernel_list_length(&(this_event->waitQ.task_list));
-
   wake_up_interruptible(&(this_event->waitQ));
+
+  write_unlock_irqrestore(&eventID_list_lock, flags);
 
   return result;
 
@@ -165,11 +169,10 @@ asmlinkage int sys_doeventsig(int eventID){
 /* TODO:
  * Prevent spurious wakeups.  Could be done by using
    uninterruptible sleep and wake_up, but that prevents
-   important interrupts like ctrl-C.
- * Lock to ensure integrity of each eventID_list.
+   important interrupts like ctrl-C. (Done)
+ * Lock to ensure integrity of each eventID_list. (Done)
 
  */
-
 
 
   // This just prints the first eventID as a test.  It has
