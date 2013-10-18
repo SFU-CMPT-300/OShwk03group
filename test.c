@@ -2,60 +2,88 @@
 #include <linux/unistd.h>
 #include <sys/syscall.h>
 
-#define _sys_doeventopen_ 327
-#define _sys_doeventclose_ 328
-#define _sys_doeventwait_ 329
-#define _sys_doeventsig_ 330
+#define _doeventopen_ 327
+#define _doeventclose_ 328
+#define _doeventwait_ 329
+#define _doeventsig_ 330
 
 int main(int argc, char *argv[]){
     int i;
     int pid;
     int event;
-    event=syscall(_sys_doeventopen_);
+    int sigd;
+    event=syscall(_doeventopen_);
 
-    // Test signalling.
-    pid=fork();
+    // Multiple things waiting on multiple events.
+
+    int eid1, eid2, eid3;
+    eid1 = syscall(_doeventopen_);
+    eid2 = syscall(_doeventopen_);
+    eid3 = syscall(_doeventopen_);
+
+    pid = fork();
+
     switch(pid){
         case 0:
-            fork();
-            fork();
-            printf("child waiting on %d\n",event);
-            syscall(_sys_doeventwait_,event);
-            printf("child woken!\n");
-            printf("child waiting on %d\n",event);
-            syscall(_sys_doeventwait_,event);
-            printf("child woken!\n");
-            break;
+          pid = fork();
+          syscall(_doeventwait_, eid1);
+          printf("Woken by signal to event %i \n", eid1);
+          exit(0);
         case -1:
-            printf("could not fork\n");
-            break;
+          printf("This should NEVER happen. \n");
+          exit(-1);
         default:
-            printf("sleeping to let the childeren wait\n");
-            sleep(2);
-            printf("signaling event %d ...\n",event);
-            sigd=syscall(_sys_doeventsig_,event);
-            printf("%d processes signaled\n",sigd);
-            printf("sleeping to let the childeren wait\n");
-            sleep(2);
-            printf("closing event %d ...\n",event);
-            sigd=syscall(_sys_doeventclose_,event);
-            printf("%d processes signaled\n",sigd);
+          pid = fork();
+          switch(pid){
+          case 0:
+            syscall(_doeventwait_, eid2);
+            printf("Woken by signal to event %i \n", eid2);
+            exit(0);
+          case -1:
+            printf("This should NEVER happen. \n");
+            exit(-1);
+          default:
+            pid = fork();
+            switch(pid){
+            case 0:
+              syscall(_doeventwait_, eid3);
+              printf("Woken by signal to event %i \n", eid3);
+              exit(0);
+            case -1:
+              printf("This should NEVER happen. \n");
+              exit(-1);
+            default:
+              sleep(1);
+              int num_signalled_1 = syscall(_doeventsig_, eid1);
+              printf("Signalled %i processes \n", num_signalled_1);
+              int num_signalled_2 = syscall(_doeventsig_, eid2);
+              printf("Signalled %i processes \n", num_signalled_2);
+              int num_signalled_3 = syscall(_doeventsig_, eid3);
+              printf("Signalled %i processes \n", num_signalled_3);
             break;
-        
+            }
+          }
     }
-    
+
+    syscall(_doeventclose_, eid1);
+    printf("Closed event %i \n", eid1);
+    syscall(_doeventclose_, eid2);
+    printf("Closed event %i \n", eid2);
+    syscall(_doeventclose_, eid3);
+    printf("Closed event %i \n", eid3);
+
+    // Open and close - make sure closed eid becomes
+    // available if it's the last one.
     int eid = syscall(_doeventopen_);
-    printf("\nOpened event %i", eid);
+    printf("Opened event %i \n", eid);
 
     syscall(_doeventclose_, eid);
-    printf("\nClosed event %i", eid);
+    printf("Closed event %i \n", eid);
 
     eid = syscall(_doeventopen_);
-    printf("\nOpened event %i", eid);
+    printf("Opened event %i \n", eid);
 
     syscall(_doeventclose_, eid);
-    printf("\nClosed event %i", eid);
-
-    
+    printf("Closed event %i \n", eid);
 
 }

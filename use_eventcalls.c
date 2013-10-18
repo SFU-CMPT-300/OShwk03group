@@ -14,9 +14,19 @@ int main(int argc, char *argv[])
 {
   printf("\nMaking a kernel level system call!\n\n");
 
-  //  syscall(_prinfo_, &x); // x was a struct prinfo.
-  //sys_cs2456_test(&x);
-  syscall(_doeventopen_);
+  //Open event.
+  int eid = syscall(_doeventopen_);
+  printf("\nOpened event %i", eid);
+
+  //Close event.
+  syscall(_doeventclose_, eid);
+  printf("\nClosed event %i", eid);
+
+  //Open event and verify that it gets the
+  //expected number
+  int eid = syscall(_doeventopen_);
+  printf("\nOpened event %i", eid);
+
   printf("\nComing back from the kernel level!\n\n");
 
   return 0;
