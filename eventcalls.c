@@ -135,6 +135,9 @@ asmlinkage int sys_doeventclose(int eventID){
 }
 
 asmlinkage int sys_doeventwait(int eventID){
+  if(eventID==0){
+    return -1;
+  }
 
   unsigned long flags;
   read_lock_irqsave(&eventID_list_lock, flags);
@@ -152,6 +155,9 @@ asmlinkage int sys_doeventwait(int eventID){
 }
 
 asmlinkage int sys_doeventsig(int eventID){
+  if(eventID==0){
+    return -1;
+  }
 
   unsigned long flags;
 
