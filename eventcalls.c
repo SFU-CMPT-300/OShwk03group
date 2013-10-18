@@ -147,6 +147,8 @@ asmlinkage int sys_doeventwait(int eventID){
 
   read_unlock_irqrestore(&eventID_list_lock, flags);
 
+  // The go_aheads prevents this from going to sleep
+  // if the process has just been signalled!
   while(x==this_event->go_aheads) {
     interruptible_sleep_on(&(this_event->waitQ));
   }
