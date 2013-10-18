@@ -17,6 +17,8 @@ int main(int argc, char *argv[]){
     pid=fork();
     switch(pid){
         case 0:
+            fork();
+            fork();
             printf("child waiting on %d\n",event);
             syscall(_sys_doeventwait_,event);
             printf("child woken!\n");
@@ -31,14 +33,16 @@ int main(int argc, char *argv[]){
             printf("sleeping to let the childeren wait\n");
             sleep(2);
             printf("signaling event %d ...\n",event);
-            syscall(_sys_doeventsig_,event);
+            sigd=syscall(_sys_doeventsig_,event);
+            printf("%d processes signaled\n",sigd);
             printf("sleeping to let the childeren wait\n");
             sleep(2);
             printf("closing event %d ...\n",event);
-            syscall(_sys_doeventclose_,event);
+            sigd=syscall(_sys_doeventclose_,event);
+            printf("%d processes signaled\n",sigd);
             break;
+        
     }
-    
     
     int eid = syscall(_doeventopen_);
     printf("\nOpened event %i", eid);
