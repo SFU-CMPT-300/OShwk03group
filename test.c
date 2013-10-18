@@ -12,6 +12,8 @@ int main(int argc, char *argv[]){
     int pid;
     int event;
     event=syscall(_sys_doeventopen_);
+
+    // Test signalling.
     pid=fork();
     switch(pid){
         case 0:
@@ -35,6 +37,21 @@ int main(int argc, char *argv[]){
             printf("closing event %d ...\n",event);
             syscall(_sys_doeventclose_,event);
             break;
-        
     }
+    
+    
+    int eid = syscall(_doeventopen_);
+    printf("\nOpened event %i", eid);
+
+    syscall(_doeventclose_, eid);
+    printf("\nClosed event %i", eid);
+
+    eid = syscall(_doeventopen_);
+    printf("\nOpened event %i", eid);
+
+    syscall(_doeventclose_, eid);
+    printf("\nClosed event %i", eid);
+
+    
+
 }

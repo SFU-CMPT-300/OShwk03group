@@ -178,5 +178,4 @@ asmlinkage int sys_doeventsig(int eventID){
 
   return result;
 
-  return -1;
 }
