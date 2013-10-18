@@ -61,6 +61,7 @@ struct event * get_event(int eventID){
       return pos;
     }
   }
+  return (struct event *) NULL;
 }
 
 void initiate_global(void){
@@ -90,16 +91,8 @@ asmlinkage int sys_doeventopen(void){
   // Add the event's list to the main list.
   unsigned long flags; // for the lock
   write_lock_irqsave(&eventID_list_lock, flags);
-  struct event * pos;
-  printk("Before Adding");
-  list_for_each_entry(pos, &global_event.eventID_list, eventID_list){
-    printk("%d -> ",pos->eventID);
-  }
-  printk("\n");
 
   list_add_tail(&(my_event->eventID_list), &global_event.eventID_list);
-
-  printk("global_next %p\tglobal_prev %p\n",global_event.eventID_list.next,global_event.eventID_list.prev);
 
   int maxID = list_entry((my_event->eventID_list).prev,
                          struct event,
@@ -107,14 +100,8 @@ asmlinkage int sys_doeventopen(void){
 
   my_event->eventID = maxID + 1;
 
-  printk("MaxID:\t%i, myEventID:\t%i, globalID:\t%i\n", maxID, my_event->eventID, global_event.eventID);
 
   init_waitqueue_head(&(my_event->waitQ));
-  printk("After Adding\n");
-  list_for_each_entry(pos, &global_event.eventID_list, eventID_list){
-    printk("%d -> ",pos->eventID);
-  }
-  printk("\n");
 
   write_unlock_irqrestore(&eventID_list_lock, flags);
 
@@ -122,11 +109,17 @@ asmlinkage int sys_doeventopen(void){
 }
 
 asmlinkage int sys_doeventclose(int eventID){
+  if(eventID==0){
+    return -1;
+  }
   unsigned long flags;
 
   read_lock_irqsave(&eventID_list_lock, flags);
   struct event * this_event = get_event(eventID);
   read_unlock_irqrestore(&eventID_list_lock, flags);
+  if(this_event==NULL){
+    return -1;
+  }
 
   int result = sys_doeventsig(eventID);
 
@@ -165,6 +158,9 @@ asmlinkage int sys_doeventsig(int eventID){
   write_lock_irqsave(&eventID_list_lock, flags);
 
   struct event * this_event = get_event(eventID);
+  if(this_event==NULL){
+    return -1;
+  }
   // Right here, the event could be deleted by another process.
   // But not with this handy write lock!
   this_event->go_aheads++;
