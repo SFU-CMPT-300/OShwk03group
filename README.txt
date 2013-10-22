@@ -1,9 +1,19 @@
 OShwk03group
 ============
 
+The implementations are as follows:
+
+
 struct event
   Contains a WaitQueue (called waitQ) and an eventID.  WaitQueue is
   implemented in <linux/wait.h>.
+
+struct event * get_event(int eventID)
+  Returns a pointer to the event with id "eventID"
+
+void initiate_global(void)
+  Initiates a global event so that there is a place to build a linked
+  list of other events.
 
 int doeventopen()
   Creates a new event, returning event ID on success, -1 on failure.

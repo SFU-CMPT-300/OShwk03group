@@ -67,10 +67,7 @@ struct event * get_event(int eventID){
 void initiate_global(void){
   eventID_list_lock = RW_LOCK_UNLOCKED;
 
-  //  unsigned long flags; // for the lock
-  //  read_lock_irqsave(&eventID_list_lock, flags);
   INIT_LIST_HEAD(&global_event.eventID_list);
-  //  read_unlock_irqrestore(&eventID_list_lock, flags);
 
   global_event.eventID = 0;
   init_waitqueue_head(&global_event.waitQ);
@@ -78,10 +75,6 @@ void initiate_global(void){
 }
 
 asmlinkage int sys_doeventopen(void){
-  
-  //  if(! event_initialized){
-  //    initiate_global();
-  //  }
 
   struct event * my_event = kmalloc(sizeof(struct event), GFP_KERNEL);
 
@@ -99,7 +92,6 @@ asmlinkage int sys_doeventopen(void){
                          eventID_list)->eventID;
 
   my_event->eventID = maxID + 1;
-
 
   init_waitqueue_head(&(my_event->waitQ));
 
